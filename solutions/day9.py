@@ -25,7 +25,7 @@ def main():
                     head_history.append(head_coords)
 
                     if not touching(head_coords, tail_coords):
-                        tail_coords = head_history[-2]
+                        tail_coords = update_tail(head_coords, tail_coords)
                         tail_history.append(tail_coords)
 
                     # part 2
@@ -37,7 +37,7 @@ def main():
                     head_history.append(head_coords)
 
                     if not touching(head_coords, tail_coords):
-                        tail_coords = head_history[-2]
+                        tail_coords = update_tail(head_coords, tail_coords)
                         tail_history.append(tail_coords)
 
                     # part 2
@@ -48,7 +48,7 @@ def main():
                     head_history.append(head_coords)
 
                     if not touching(head_coords, tail_coords):
-                        tail_coords = head_history[-2]
+                        tail_coords = update_tail(head_coords, tail_coords)
                         tail_history.append(tail_coords)
 
                     # part 2
@@ -59,7 +59,7 @@ def main():
                     head_history.append(head_coords)
 
                     if not touching(head_coords, tail_coords):
-                        tail_coords = head_history[-2]
+                        tail_coords = update_tail(head_coords, tail_coords)
                         tail_history.append(tail_coords)
 
                     # part 2
@@ -90,7 +90,7 @@ def update_snake(move_x: int, move_y: int,
     snake[0] = (snake[0][0] + move_x, snake[0][1] + move_y)
     for idx in range(1, len(snake)):
         if not touching(snake[idx - 1], snake[idx]):
-            snake[idx] = (snake[idx][0] + move_x, snake[idx][1] + move_y)
+            snake[idx] = update_tail(snake[idx - 1], snake[idx])
 
             if idx == len(snake) - 1:
                 tail_history.append(snake[-1])
