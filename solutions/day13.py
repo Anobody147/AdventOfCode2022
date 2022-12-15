@@ -1,11 +1,12 @@
-from typing import List, Union
 from enum import Enum
+from functools import cmp_to_key
 
 
 class Order(Enum):
     ORDERED = 1
     NOT_ORDERED = 2
     UNKNOWN = 3
+
 
 def main():
     with open('../data/day13/day13.txt', 'r') as file:
@@ -21,16 +22,11 @@ def main():
         pack1 = eval(packet1)
         pack2 = eval(packet2)
 
-        print(pack1)
-        print(pack2)
-        print()
-
         pairs[idx + 1] = (pack1, pack2)
 
     in_order = []
 
     for key in pairs:
-        print(key)
         packet1, packet2 = pairs[key]
 
         packets_ordered = ordered(packet1, packet2)
@@ -43,10 +39,38 @@ def main():
             case Order.UNKNOWN:
                 in_order.append(key)
 
-    print(in_order)
-    print(sum(in_order))
+    print('part 1', sum(in_order))
 
-    print()
+    # part 2
+    divider1 = [[2]]
+    divider2 = [[6]]
+
+    packets = []
+    for value in pairs.values():
+        packets.append(value[0])
+        packets.append(value[1])
+
+    packets.append(divider1)
+    packets.append(divider2)
+
+    sorted_packets = sorted(packets, key=cmp_to_key(comparison), reverse=True)
+
+    divider1_idx = sorted_packets.index(divider1) + 1
+    divider2_idx = sorted_packets.index(divider2) + 1
+
+    print('part 2', divider1_idx * divider2_idx)
+
+
+def comparison(left, right) -> int:
+    packets_ordered = ordered(left, right)
+
+    match packets_ordered:
+        case Order.ORDERED:
+            return 1
+        case Order.NOT_ORDERED:
+            return -1
+        case Order.UNKNOWN:
+            return 1
 
 
 def ordered(left, right) -> Order:
