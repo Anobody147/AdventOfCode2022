@@ -1,7 +1,6 @@
 import re
 from typing import Tuple, Union
 from collections import deque
-from copy import deepcopy
 
 
 def main():
@@ -79,8 +78,6 @@ def main():
                 coord_y = idy
                 coord_x = pos_intervals[0][1] + 1
                 break
-
-
 
     print('part 2', coord_x * 4000000 + coord_y)
 
