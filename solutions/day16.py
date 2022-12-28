@@ -1,30 +1,12 @@
 import re
 from typing import List, Tuple, Dict
+from itertools import product
 import math
-from collections import deque
-
-
-class Node(object):
-
-    def __init__(self, name, flow):
-        self.name = name
-        self.flow = flow
-        self.edges = []
-        self.opened = False
-
-    def add_edge(self, edge: 'Node'):
-        if edge is not None:
-            self.edges.append(edge)
-
-    def __str__(self):
-        return f'{self.name}-{self.flow}'
-
-    def __hash__(self):
-        return super.__hash__(self)
+from functools import cache
 
 
 def main():
-    with open('../data/day16/test16.txt', 'r') as file:
+    with open('../data/day16/day16.txt', 'r') as file:
         data = file.readlines()
 
     # parse the input data
@@ -52,127 +34,73 @@ def main():
         node_edges[node] = edge_list
         node_flows[node] = flow
 
-    # construct the nodes
-    node_objects = {}
-    for node, flow in zip(nodes, flows):
-        node_objects[node] = Node(node, flow)
+    # compute the distances between all the nodes
+    node_distances = floyd_warshall(nodes, node_edges)
 
-    # add the edges to the nodes
-    for node, edge_list in zip(nodes, edges):
-        for edge in edge_list:
-            node_objects[node].add_edge(node_objects[edge])
+    @cache
+    def DFS(nodes, curr_node, time_left) -> int:
 
-    # solve loop
-    time_left = 30
-    curr_node = node_objects['AA']
-    curr_release = 0
+        values = [0]
+        for idx, node in enumerate(nodes):
+            if (time_left - node_distances[curr_node, node]) > 0:
+                node_copy = nodes[:idx] + nodes[idx + 1:]
 
-    while time_left > 0:
+                new_time_left = time_left - node_distances[curr_node, node] - 1
+                new_release = (new_time_left * node_flows[node])
 
-        # compute the distances and paths
-        distances, previous = dijsktra(node_objects, curr_node)
+                value = new_release + DFS(node_copy, node, new_time_left)
+                values.append(value)
 
-        # compute the values of each node
-        node_values = []
-        for node in node_objects.values():
+        return max(values)
 
-            # check that flow is not 0 and is not opened already
-            if node.flow == 0 or node.opened:
-                continue
+    @cache
+    def DFS_2(nodes, curr_node, time_left) -> int:
 
-            # compute the value of a node
-            node_values.append((node, node.flow * (time_left - 1 - distances[node])))
+        # compete against the regular version to find the best version
+        values = [DFS(nodes, 'AA', 26)]
+        for idx, node in enumerate(nodes):
+            if (time_left - node_distances[curr_node, node]) > 0:
+                node_copy = nodes[:idx] + nodes[idx + 1:]
 
-        # sort the list according to the node values
-        node_values.sort(key=lambda x: x[1], reverse=True)
+                new_time_left = time_left - node_distances[curr_node, node] - 1
+                new_release = (new_time_left * node_flows[node])
 
-        if len(node_values) < 1:
-            # no new nodes left to explore
-            break
+                value = new_release + DFS_2(node_copy, node, new_time_left)
+                values.append(value)
 
-        target_node = node_values[0][0]
+        return max(values)
 
-        # check if opening the current node valve would be worth delaying
-        if not curr_node.opened and (curr_node.flow * (time_left - 1)) >= target_node.flow:
-            print(f'Valve {curr_node.name} is open, releasing {curr_node.flow * (time_left - 1)} pressure')
-            curr_node.opened = True
-            curr_release += curr_node.flow * (time_left - 1)
-            time_left = time_left - 1
-            continue
+    # DFS
+    filtered_nodes = tuple(filter(lambda x: node_flows[x] > 0, nodes))
+    result = DFS(filtered_nodes, 'AA', 30)
 
-        # check if any of the neighbours would be worth delaying for
-        delay_nodes = []
-        for node in curr_node.edges:
-            if (node.flow * (time_left - 2)) >= (target_node.flow * 2) and not node.opened:
-                delay_nodes.append((node, node.flow * (time_left - 2)))
+    print(result)
 
-        delay_nodes.sort(key=lambda x: x[1], reverse=True)
+    # part 2
+    filtered_nodes = tuple(filter(lambda x: node_flows[x] > 0, nodes))
+    result_2 = DFS_2(filtered_nodes, 'AA', 26)
 
-        if len(delay_nodes) > 0:
-
-            # check to make sure that the detour does not increase the distance to the target in excess of it's value
-            delay_node = None
-            for delay_node in delay_nodes:
-                node = delay_node[0]
-                node_value = delay_node[1]
-                delay_distances, delay_previous = dijsktra(node_objects, node)
-                if (delay_distances[target_node] - distances[target_node]) * target_node.flow > node_value:
-                    continue
-                else:
-                    delay_node = node
-                    break
-
-            if delay_node is not None:
-                print(f'Bypas Valve {delay_node.name} is open, releasing {delay_node.flow * (time_left - 2)} pressure')
-                curr_release += delay_node.flow * (time_left - 2)
-                delay_node.opened = True
-                time_left -= 2
-                curr_node = delay_node
-                continue
-
-        # if not go the node next on the path
-        prev_node = previous[target_node]
-        while prev_node is not curr_node:
-            target_node = prev_node
-            prev_node = previous[prev_node]
-
-        # found the next step so take it
-        curr_node = target_node
-        time_left -= 1
-
-    print(curr_release)
+    print(result_2)
 
 
-def dijsktra(graph: Dict[str, Node], source: Node) -> Tuple[Dict[Node, int], Dict[Node, Node]]:
-
+def floyd_warshall(nodes: List[str], edges: Dict[str, Tuple[str, ...]]) -> Dict[Tuple[str, str], int]:
     dist = {}
-    prev = {}
-    Q = []
-    for v in graph.values():
-        dist[v] = math.inf
-        prev[v] = None
-        Q.append(v)
-    dist[source] = 0
+    for x, y in product(nodes, nodes, repeat=1):
+        dist[x, y] = math.inf
 
-    while len(Q) > 0:
-        u = None
-        u_dist = math.inf
-        for v in Q:
-            if dist[v] < u_dist:
-                u = v
-                u_dist = dist[v]
-        Q.remove(u)
+    for node in nodes:
+        for edge in edges[node]:
+            dist[node, edge] = 1
 
-        for v in u.edges:
-            if v not in Q:
-                continue
+    for node in nodes:
+        dist[node, node] = 0
 
-            alt = dist[u] + 1
-            if alt < dist[v]:
-                dist[v] = alt
-                prev[v] = u
+    for k, i, j in product(nodes, nodes, nodes, repeat=1):
+        if dist[i, j] > dist[i, k] + dist[k, j]:
+            dist[i, j] = dist[i, k] + dist[k, j]
 
-    return dist, prev
+    return dist
+
 
 if __name__ == '__main__':
     main()
